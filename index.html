@@ -17,6 +17,7 @@
     <div class="topmeta">
       <span id="live-badge" class="badge">加载中…</span>
       <span id="update-time" class="muted"></span>
+      <button id="btn-datasource" class="hdr-btn">📖 数据说明</button>
     </div>
   </div>
 </header>
@@ -40,16 +41,17 @@
       <div class="panel">
         <h3>市场温度计 <span class="muted small" id="temp-label"></span></h3>
         <div id="gauge" class="h220"></div>
+        <div id="phase-line" class="phase-line"></div>
         <div id="temp-components" class="chips"></div>
       </div>
       <div class="panel">
-        <h3>温度走势 <span class="muted small">随每日自动更新累积</span></h3>
+        <h3>温度走势 <span class="muted small">蓝线=温度 · 红绿柱=上证涨跌幅 · 随每日自动更新累积</span></h3>
         <div id="temp-history" class="h220"></div>
         <div id="history-note" class="muted small"></div>
       </div>
     </div>
     <div class="panel">
-      <h3>上证指数 · 日K(近120日) <span class="muted small">MA5/10/20/60 + 成交额</span></h3>
+      <h3>上证指数 · 日K(近120日) <span class="muted small">MA5/10/20/60 + 成交额 · <span class="ds-date"></span></span></h3>
       <div id="kline-sh" class="h430"></div>
     </div>
     <div class="grid2">
@@ -69,20 +71,20 @@
   <!-- ============ 资金 ============ -->
   <section id="tab-funds" class="tab">
     <div class="panel">
-      <h3>主力资金净流入 · 行业板块(红=流入 绿=流出)</h3>
+      <h3>主力资金净流入 · 行业板块 <span class="muted small">红=流入 绿=流出 · <span class="ds-date"></span></span></h3>
       <div id="sector-flow-chart" class="h430"></div>
     </div>
     <div class="panel">
-      <h3>全市场主力资金 · 近60日(沪深合计)</h3>
+      <h3>全市场主力资金 · 近60日(沪深合计) <span class="muted small">"主力"=超大单+大单,东财口径</span></h3>
       <div id="main-flow-chart" class="h280"></div>
     </div>
     <div class="grid2">
       <div class="panel">
-        <h3>个股主力净流入 Top 20</h3>
+        <h3>个股主力净流入 Top 20 <span class="muted small"><span class="ds-date"></span></span></h3>
         <div id="stock-flow-table"></div>
       </div>
       <div class="panel">
-        <h3>融资余额(两融 · T+1 披露)</h3>
+        <h3>融资余额(两融 · T+1 披露) <span class="muted small">沪深北合计</span></h3>
         <div id="margin-latest" class="chips"></div>
         <div id="margin-chart" class="h280"></div>
       </div>
@@ -135,9 +137,35 @@
 </main>
 
 <footer class="wrap">
-  <p>数据来源:东方财富公开行情接口 · 数据层基于开源库 <a href="https://github.com/akfamily/akshare" target="_blank" rel="noopener">akshare</a>(自动降级直连) · 图表:<a href="https://github.com/apache/echarts" target="_blank" rel="noopener">Apache ECharts</a></p>
-  <p>本站仅供学习交流,不构成任何投资建议 · 每个交易日 15:35(北京时间)由 GitHub Actions 自动更新</p>
+  <p>数据来源:东方财富公开行情接口(口径详见<a href="#" id="footer-ds-link">数据说明</a>) · 数据层基于开源库 <a href="https://github.com/akfamily/akshare" target="_blank" rel="noopener">akshare</a>(自动降级直连) · 图表:<a href="https://github.com/apache/echarts" target="_blank" rel="noopener">Apache ECharts</a></p>
+  <p>开源仓库:<a href="https://github.com/Naico-qy/a-share-radar" target="_blank" rel="noopener">github.com/Naico-qy/a-share-radar</a> · 每个交易日 15:35(北京时间)由 GitHub Actions 自动更新</p>
+  <p class="strong-disclaimer">本站仅供学习交流,不构成任何投资建议。市场有风险,投资需谨慎。</p>
 </footer>
+
+<!-- 数据来源与口径说明弹窗 -->
+<div id="ds-modal" class="modal-mask" style="display:none">
+  <div class="modal">
+    <div class="modal-head"><b>📖 数据来源与口径说明</b><button id="ds-close">✕ 关闭</button></div>
+    <div class="modal-body">
+      <p>本站坚持<b>数据来源透明</b>:所有指标均来自公开接口,可复核、可重现。下表列出每项数据的来源、更新频率与统计口径。</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>指标</th><th>来源</th><th>更新频率</th><th>口径说明</th></tr></thead>
+        <tbody>
+          <tr><td>指数行情 / 涨跌家数</td><td>东方财富 push2 行情接口(与 akshare 同源)</td><td>盘中约 3~6 秒延迟,收盘后为终值</td><td>涨跌家数=沪市/深市全部 A 股;科创50 为其成分股</td></tr>
+          <tr><td>指数日 K</td><td>akshare stock_zh_index_daily_em,失败自动直连东财 push2his</td><td>每交易日收盘后</td><td>前复权;深市成交额取自深证成指 K 线</td></tr>
+          <tr><td>全市场主力资金</td><td>东财大盘资金流(akshare stock_market_fund_flow)</td><td>盘中实时,收盘后固化</td><td>"主力"=超大单+大单(按单笔成交金额划分,东财口径);<b>非北向资金</b>——北向盘中净买入披露已于 2024 年 8 月停止,故不采用</td></tr>
+          <tr><td>板块 / 个股资金</td><td>东财 clist 接口</td><td>盘中实时</td><td>净占比 = 主力净流入 ÷ 流通市值</td></tr>
+          <tr><td>涨跌停 / 炸板池</td><td>东财 push2ex 话题池</td><td>盘中实时,收盘固化</td><td>涨停=收盘封板;炸板=盘中曾涨停但收盘未封住;炸板率=炸板÷(涨停+炸板)</td></tr>
+          <tr><td>两融</td><td>东财数据中心(沪深北合计)</td><td><b>T+1 披露</b>(次晨)</td><td>融资余额、融资净买入</td></tr>
+          <tr><td>技术指标</td><td>本站计算(MA / MACD / RSI)</td><td>收盘后</td><td>MACD 柱 = 2×(DIF−DEA);RSI14 采用 Wilder 平滑;前端与 Python 同口径</td></tr>
+          <tr><td>市场温度计</td><td>本站规则计算</td><td>每日收盘后</td><td>基础 50 分 ± 六维加分:涨跌家数(±18)、涨跌停结构(±15)、量能(±10)、主力资金(±12)、两融(±5)、炸板率(−6~+4),区间映射:≤20 冰点 / ≤40 降温 / ≤60 中性 / ≤80 回暖 / &gt;80 过热</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted small">数据端点与打分参数全部开源(见 GitHub 仓库 scripts/ 目录),欢迎复核与指正。</p>
+      <p class="strong-disclaimer">免责声明:本站为开源学习项目,所有内容由固定规则自动生成,不构成任何投资建议;数据可能存在延迟或错误。市场有风险,投资需谨慎。</p>
+    </div>
+  </div>
+</div>
 
 <script src="assets/js/indicators.js"></script>
 <script src="assets/js/app.js"></script>

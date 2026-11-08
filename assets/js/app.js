@@ -19,9 +19,14 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 function tableHTML(head, rows) {
-  return '<table><thead><tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>' +
-    rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+  // head 项可以是纯文本,也可以是带 title 属性的 <th> 片段(用于术语提示)
+  return '<div class="tbl-wrap"><table><thead><tr>' +
+    head.map(h => h.startsWith('<th') ? h : `<th>${h}</th>`).join('') +
+    '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('') +
+    '</tbody></table></div>';
 }
+const TH = (tip, label) => `<th title="${tip}">${label}</th>`;
 function jsonp(url, timeout = 8000) {
   return new Promise((resolve, reject) => {
     const cb = 'asrCb_' + Math.random().toString(36).slice(2);
@@ -83,6 +88,7 @@ function renderMeta() {
   const m = DATA.meta;
   if (!m) return;
   $('#update-time').textContent = `数据日期 ${m.date} · 生成于 ${m.generated_at}`;
+  document.querySelectorAll('.ds-date').forEach(el => el.textContent = m.date);
 }
 
 function setBadge(mode, text) {
@@ -136,6 +142,10 @@ function renderGauge() {
       title: { show: false },
     }],
   });
+  if (rep.phase) {
+    $('#phase-line').innerHTML =
+      `<span class="chip"><b>🔄 ${esc(rep.phase.name)}</b><i>${esc(rep.phase.text)}</i></span>`;
+  }
 }
 
 function renderTempComponents() {
@@ -153,19 +163,28 @@ function renderHistory() {
   const h = DATA.history || [];
   const dates = h.map(x => x.date.slice(5));
   const vals = h.map(x => x.temp);
+  const pcts = h.map(x => x.sh_pct);
   chart('temp-history', {
-    grid: { left: 34, right: 14, top: 16, bottom: 24 },
+    grid: { left: 34, right: 40, top: 16, bottom: 24 },
     xAxis: Object.assign({ type: 'category', data: dates }, AXIS, { boundaryGap: false }),
-    yAxis: Object.assign({ type: 'value', min: 0, max: 100 }, AXIS),
-    series: [{
-      type: 'line', data: vals, smooth: true, symbol: 'circle', symbolSize: 5,
-      lineStyle: { color: '#5b8cff', width: 2 },
-      areaStyle: { color: 'rgba(91,140,255,.15)' },
-      markLine: { silent: true, symbol: 'none', label: { color: '#6b7891', fontSize: 10 },
-        lineStyle: { color: 'rgba(107,120,145,.5)', type: 'dashed' },
-        data: [{ yAxis: 50, label: { formatter: '中性 50' } }] },
-      tooltip: { valueFormatter: v => v + ' 分' },
-    }],
+    yAxis: [
+      Object.assign({ type: 'value', min: 0, max: 100 }, AXIS),
+      Object.assign({ type: 'value', min: p => Math.floor(Math.min(...pcts.concat([0])) - 1),
+        max: p => Math.ceil(Math.max(...pcts.concat([0])) + 1),
+        axisLabel: { formatter: v => v + '%', color: '#8b98ac' }, splitLine: { show: false } }, AXIS),
+    ],
+    series: [
+      { name: '市场温度', type: 'line', data: vals, smooth: true, symbol: 'circle', symbolSize: 5,
+        lineStyle: { color: '#5b8cff', width: 2 },
+        areaStyle: { color: 'rgba(91,140,255,.15)' },
+        markLine: { silent: true, symbol: 'none', label: { color: '#6b7891', fontSize: 10 },
+          lineStyle: { color: 'rgba(107,120,145,.5)', type: 'dashed' },
+          data: [{ yAxis: 50, label: { formatter: '中性 50' } }] },
+        tooltip: { valueFormatter: v => v + ' 分' } },
+      { name: '上证涨跌幅', type: 'bar', yAxisIndex: 1, data: pcts.map(v => ({ value: v,
+        itemStyle: { color: v >= 0 ? 'rgba(240,74,90,.55)' : 'rgba(46,194,126,.55)' } })),
+        barWidth: '30%', tooltip: { valueFormatter: v => fmt.pct(v) } },
+    ],
     tooltip: tooltipFixed(),
   });
   if (h.length < 5) $('#history-note').textContent = `当前仅 ${h.length} 个交易日数据,部署后每个交易日自动累积。`;
@@ -226,8 +245,9 @@ function renderPools() {
     <span class="chip"><b>${maxLbc} 板</b><i>最高连板</i></span>`;
   const lian = (zt.zt || []).filter(x => (x.lbc || 0) >= 2).sort((a, b) => (b.lbc || 0) - (a.lbc || 0)).slice(0, 12);
   $('#lianban-list').innerHTML = lian.length
-    ? tableHTML(['股票', '连板', '行业', '封单', '首次封板'],
-      lian.map(x => [esc(x.name), `<span class="up">${x.lbc} 板</span>`, esc(x.hybk || '--'),
+    ? tableHTML(['股票', '连板', TH('近 N 个交易日中的涨停次数,衡量该股涨停密度', '近期涨停'), '行业', TH('收盘买一封单金额,越大封板越稳', '封单'), '首次封板'],
+      lian.map(x => [esc(x.name), `<span class="up">${x.lbc} 板</span>`,
+        (x.days && x.ct) ? `${x.days}天${x.ct}板` : '--', esc(x.hybk || '--'),
         fmt.yiSign(x.fund), esc(x.fbt || '--')]))
     : '<span class="muted small">无 2 连板以上个股</span>';
 }
@@ -287,11 +307,14 @@ function renderMainFlow() {
 function renderStockFlow() {
   const list = (DATA.stocks_flow && DATA.stocks_flow.list) || [];
   $('#stock-flow-table').innerHTML = list.length ? tableHTML(
-    ['股票', '现价', '涨跌幅', '主力净流入', '净占比', '行业'],
+    ['股票', '现价', TH('当日收盘/最新价相对昨收的百分比', '涨跌幅'),
+     TH('主力=超大单+大单净额(东财口径)', '主力净流入'),
+     TH('主力净流入 ÷ 流通市值,衡量资金介入强度', '净占比'),
+     TH('流通 A 股市值', '流通市值'), '行业'],
     list.map(r => [`${esc(r.name)}<br><span class="muted small">${esc(r.code)}</span>`,
       fmt.num(r.price), `<span class="${cls(r.pct)}">${fmt.pct(r.pct)}</span>`,
       `<span class="${cls(r.main)}">${fmt.yiSign(r.main)}</span>`,
-      fmt.pct(r.main_pct), esc(r.industry || '--')])) : '<span class="muted small">数据暂缺</span>';
+      fmt.pct(r.main_pct), fmt.yi(r.float_mv), esc(r.industry || '--')])) : '<span class="muted small">数据暂缺</span>';
 }
 
 function renderMargin() {
@@ -335,8 +358,18 @@ function renderReport() {
   const rep = DATA.report;
   if (!rep) { $('#report-body').innerHTML = '<span class="muted small">报告暂缺</span>'; return; }
   $('#report-title').textContent = '每日报告 · ' + rep.headline;
-  $('#report-body').innerHTML = rep.sections.map(s =>
-    `<h4 style="font-size:15px;color:#e6edf3;margin-top:20px">${esc(s.title)}</h4><div>${s.html}</div>`).join('');
+  const toc = rep.sections.map(s =>
+    `<button class="toc-chip" data-target="rp-sec-${s.id}">${esc(s.title)}</button>`).join('');
+  $('#report-body').innerHTML =
+    `<div class="toc">${toc}</div>` +
+    rep.sections.map(s =>
+      `<div id="rp-sec-${s.id}"><h4 style="font-size:15px;color:#e6edf3;margin-top:20px">${esc(s.title)}</h4><div>${s.html}</div></div>`).join('');
+  document.querySelectorAll('.toc-chip').forEach(b => {
+    b.onclick = () => {
+      const t = document.getElementById(b.dataset.target);
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+  });
 }
 
 /* ---------------- 自选股 ---------------- */
@@ -380,7 +413,9 @@ function renderWatch() {
       `<button class="del-btn" data-code="${code}">删除</button>`];
   });
   $('#watch-table').innerHTML = codes.length
-    ? tableHTML(['名称', '现价', '涨跌幅', '主力净流入', '换手', '量比', ''], rows)
+    ? tableHTML(['名称', '现价', TH('相对昨收的百分比', '涨跌幅'),
+        TH('主力=超大单+大单净额(东财口径)', '主力净流入'),
+        TH('成交量 ÷ 流通股本', '换手'), TH('实时成交量 ÷ 过去5日平均每分钟成交量', '量比'), ''], rows)
     : '<span class="muted small">自选股为空,输入代码添加</span>';
   document.querySelectorAll('#watch-table .del-btn').forEach(btn => {
     btn.onclick = e => {
@@ -531,6 +566,16 @@ async function main() {
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
   $('#watch-add-btn').onclick = addWatch;
   $('#watch-input').addEventListener('keydown', e => { if (e.key === 'Enter') addWatch(); });
+
+  // 数据说明弹窗
+  const dsModal = $('#ds-modal');
+  const openDs = e => { if (e) e.preventDefault(); dsModal.style.display = 'flex'; };
+  const closeDs = () => { dsModal.style.display = 'none'; };
+  $('#btn-datasource').onclick = openDs;
+  $('#footer-ds-link').onclick = openDs;
+  $('#ds-close').onclick = closeDs;
+  dsModal.onclick = e => { if (e.target === dsModal) closeDs(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDs(); });
 
   await liveRefresh(false);
   liveTimer = setInterval(() => liveRefresh(false), 30000);

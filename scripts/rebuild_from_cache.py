@@ -91,7 +91,7 @@ def main():
 
     rep = rp.build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                           industries, concepts, pools, main_series, margin,
-                          amount_yi, amt_ma5_yi)
+                          amount_yi, amt_ma5_yi, margin_chg5)
     save("report.json", rep)
 
     history = load("history.json") or []

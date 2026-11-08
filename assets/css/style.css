@@ -115,8 +115,52 @@ footer p{margin:4px 0}
 /* 温度部件说明 */
 #temp-components .chip{max-width:100%}
 
+/* 情绪周期定位行 */
+.phase-line{margin:6px 0 2px}
+.phase-line .chip{display:block}
+
 /* 小按钮 */
 .link-btn{background:none; border:none; color:var(--accent); cursor:pointer; font-size:13px; padding:2px 0}
 .link-btn:hover{text-decoration:underline}
 .del-btn{background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; font-size:12px}
 .del-btn:hover{color:var(--up); border-color:rgba(240,74,90,.5)}
+.hdr-btn{background:rgba(91,140,255,.12); border:1px solid rgba(91,140,255,.4); color:#9db9ff; border-radius:16px; padding:3px 12px; cursor:pointer; font-size:12px}
+.hdr-btn:hover{background:rgba(91,140,255,.25)}
+
+/* 表格横向滚动(移动端友好) */
+.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+.tbl-wrap table{min-width:100%}
+
+/* 报告目录 */
+.toc{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px; position:sticky; top:52px; z-index:5; background:var(--card); padding:8px 0; border-bottom:1px dashed var(--line)}
+.toc-chip{background:var(--card2); border:1px solid var(--line); color:var(--tx2); border-radius:14px; padding:4px 12px; cursor:pointer; font-size:12px; white-space:nowrap}
+.toc-chip:hover{color:var(--tx); border-color:var(--accent)}
+
+/* 多空对照 */
+.bb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media (max-width:760px){ .bb-grid{grid-template-columns:1fr} }
+.bb-col{border-radius:10px; padding:10px 14px}
+.bb-col.bull-col{background:rgba(240,74,90,.06); border:1px solid rgba(240,74,90,.3)}
+.bb-col.bear-col{background:rgba(46,194,126,.06); border:1px solid rgba(46,194,126,.3)}
+.bb-col h5{font-size:13px; margin-bottom:8px}
+.bb-col.bull-col h5{color:var(--up)}
+.bb-col.bear-col h5{color:var(--down)}
+.bb-col ul{margin:0 0 0 18px}
+.bb-col li{margin:6px 0; font-size:13px; line-height:1.5}
+
+/* 数据说明弹窗 */
+.modal-mask{position:fixed; inset:0; background:rgba(4,8,16,.72); z-index:100; display:flex; align-items:flex-start; justify-content:center; padding:40px 14px; overflow-y:auto}
+.modal{background:var(--card); border:1px solid var(--line); border-radius:14px; max-width:860px; width:100%; box-shadow:0 12px 48px rgba(0,0,0,.5)}
+.modal-head{display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card); border-radius:14px 14px 0 0}
+.modal-head button{background:var(--card2); border:1px solid var(--line); color:var(--tx2); border-radius:8px; padding:5px 12px; cursor:pointer}
+.modal-body{padding:14px 18px 20px}
+.modal-body p{margin:10px 0; font-size:13px}
+.modal-body td{text-align:left; white-space:normal; font-size:12.5px; line-height:1.5}
+.modal-body th{text-align:left}
+
+/* 面板标题强调条 */
+.panel h3{position:relative; padding-left:10px}
+.panel h3::before{content:''; position:absolute; left:0; top:3px; bottom:3px; width:3px; border-radius:2px; background:var(--accent)}
+
+/* 页脚免责强调 */
+.strong-disclaimer{color:var(--gold); font-weight:600}

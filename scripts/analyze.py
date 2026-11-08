@@ -117,3 +117,104 @@ def position_advice(score, align, macd_state):
     if macd_state == "金叉":
         risks.append("MACD 刚形成金叉,可作为短线企稳参考,结合量能确认")
     return {"pct": pct, "text": text, "risks": risks}
+
+
+def cycle_phase(score, align, macd_state):
+    """情绪周期定位:冰点 → 修复 → 回暖 → 过热 → 退潮。纯描述性框架,不预测。"""
+    if score <= 20:
+        if align == "bearish":
+            return ("冰点期(下行末段)",
+                    "情绪与趋势双弱,右侧机会尚未出现;历史上冰点之后数个交易日常有超跌修复,"
+                    "但必须以放量阳线收复关键均线确认,不可提前抢跑")
+        return ("冰点期(酝酿修复)", "情绪极低但技术结构未完全走坏,重点关注率先止跌走强的方向")
+    if score <= 40:
+        return ("降温/退潮期", "赚钱效应收缩,容易'赚了指数不赚钱',宜降低操作频率、收缩战线")
+    if score <= 60:
+        return ("震荡期", "多空均衡的结构市,跟随资金主线,快进快出为主")
+    if score <= 80:
+        return ("回暖期", "赚钱效应扩散,可顺势参与;注意'分歧转一致'时的节奏")
+    return ("过热期", "一致预期过强常是阶段顶部信号,以兑现利润、控制回撤为先")
+
+
+def bull_bear_points(quotes, temp, tech_sh, main_net_yi, amt_ratio, margin_chg5, pools):
+    """多空要点:每个要点都由当日数据直接推导,尽量多空平衡,供独立判断而非给结论。"""
+    sh = next((q for q in quotes if q["code"] == "000001"), {})
+    sz = next((q for q in quotes if q["code"] == "399001"), {})
+    up = (sh.get("up") or 0) + (sz.get("up") or 0)
+    down = (sh.get("down") or 0) + (sz.get("down") or 0)
+    sh_pct = sh.get("pct") or 0
+    bull, bear = [], []
+
+    # 资金面
+    if main_net_yi > 80:
+        bull.append(f"主力资金全天净流入 {main_net_yi:+.0f} 亿,增量资金态度积极")
+    elif main_net_yi < -80:
+        bear.append(f"主力资金全天净流出 {abs(main_net_yi):.0f} 亿,主动抛压尚未消化")
+
+    # 广度
+    ratio = up / max(up + down, 1)
+    if ratio >= 0.60:
+        bull.append(f"个股上涨占比 {ratio * 100:.0f}%,赚钱效应扩散")
+    elif ratio <= 0.35:
+        bear.append(f"个股上涨占比仅 {ratio * 100:.0f}%,亏钱效应明显,持股体验差")
+
+    # 量价关系
+    if amt_ratio:
+        if sh_pct < 0 and amt_ratio < 0.9:
+            bull.append("缩量下跌,恐慌性抛压趋于衰竭,客观上利于止跌企稳")
+        elif sh_pct < 0 and amt_ratio > 1.15:
+            bear.append("放量下跌,资金离场意愿强,不宜急于'接飞刀'")
+        elif sh_pct > 0 and amt_ratio > 1.15:
+            bull.append("放量上涨,量价配合良好,上涨可信度较高")
+        elif sh_pct > 0 and amt_ratio < 0.9:
+            bear.append("缩量上涨,反弹缺乏增量资金确认,持续性存疑")
+
+    # 技术面
+    if tech_sh:
+        if tech_sh["align"] == "bullish":
+            bull.append("上证 MA5/10/20 多头排列,中期趋势结构尚未破坏")
+        elif tech_sh["align"] == "bearish":
+            bear.append("上证均线空头排列,技术性反弹均宜按反抽对待")
+        m = tech_sh.get("macd")
+        if m and m["state"] == "金叉":
+            bull.append("MACD 刚形成金叉,短线动能修复")
+        elif m and m["state"] == "死叉":
+            bear.append("MACD 刚形成死叉,调整可能延续")
+        pos20 = tech_sh.get("pos_vs_ma20")
+        if pos20 is not None and pos20 >= 0:
+            bull.append(f"指数收于 MA20 上方({pos20:+.1f}%),中期支撑有效")
+        elif pos20 is not None:
+            bear.append(f"指数收于 MA20 下方({pos20:+.1f}%),中期趋势承压")
+
+    # 涨跌停结构
+    zt = pools.get("zt_count") or 0
+    dt = pools.get("dt_count") or 0
+    zb = pools.get("zb_count") or 0
+    zb_rate = zb / max(zt + zb, 1) if (zt + zb) else 0
+    if zt >= 60:
+        bull.append(f"涨停 {zt} 家,短线局部赚钱效应仍在")
+    if dt >= 30:
+        bear.append(f"跌停 {dt} 家,高位股补跌风险未释放完毕")
+    if zb_rate >= 0.45 and (zt + zb):
+        bear.append(f"炸板率 {zb_rate * 100:.0f}% 偏高,打板资金亏损明显,情绪退潮信号")
+    elif zb_rate <= 0.20 and zt >= 50:
+        bull.append(f"炸板率仅 {zb_rate * 100:.0f}%,封板质量高")
+
+    # 杠杆资金
+    if margin_chg5 is not None:
+        if margin_chg5 >= 0.30:
+            bull.append(f"融资余额 5 日增加 {margin_chg5:+.2f}%,杠杆资金仍在进场")
+        elif margin_chg5 <= -0.50:
+            bear.append(f"融资余额 5 日减少 {margin_chg5:+.2f}%,杠杆资金退潮")
+
+    # 温度位置
+    if temp <= 20:
+        bear.append("情绪处于冰点区,趋势惯性向下;但极端低迷往往孕育修复,宜等右侧信号而非左侧抢跑")
+    elif temp >= 80:
+        bear.append("情绪过热、交易拥挤,谨防利好兑现后的踩踏")
+
+    if not bull:
+        bull.append("暂无明显利多信号,以观察等待为主")
+    if not bear:
+        bear.append("暂无明显利空信号,但仍需防范突发波动与黑天鹅")
+    return bull[:6], bear[:6]

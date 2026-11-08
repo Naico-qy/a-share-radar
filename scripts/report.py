@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import datetime as dt
 
+import analyze as az
+
 DISCLAIMER = ("本报告由开源程序基于公开市场数据自动生成,所有内容(包括仓位、方向、板块提示)仅为技术与统计层面的"
               "学习交流材料,不构成任何投资建议或收益承诺。数据可能存在延迟或错误,市场有风险,投资需谨慎。")
 
@@ -37,8 +39,8 @@ def _flow_table(rows, n=5):
                  f"<td>{_pct(r.get('main_pct'))}</td>"
                  f"<td class='{'up' if (r.get('pct') or 0) >= 0 else 'down'}'>{_pct(r.get('pct'))}</td>"
                  f"<td>{r.get('leader') or '--'}</td></tr>")
-    return ("<table><thead><tr><th>板块</th><th>主力净流入</th><th>净占比</th>"
-            "<th>涨跌幅</th><th>领涨股</th></tr></thead><tbody>" + body + "</tbody></table>")
+    return ("<div class='tbl-wrap'><table><thead><tr><th>板块</th><th>主力净流入</th><th>净占比</th>"
+            "<th>涨跌幅</th><th>领涨股</th></tr></thead><tbody>" + body + "</tbody></table></div>")
 
 
 def _tech_text(name, v):
@@ -61,11 +63,20 @@ def _tech_text(name, v):
 
 def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                  industries, concepts, pools, main_series, margin,
-                 amount_yi, amt_ma5_yi):
+                 amount_yi, amt_ma5_yi, margin_chg5=None):
     sh = next((q for q in quotes if q["code"] == "000001"), {})
     sh_pct = sh.get("pct") or 0
     score = temp["score"]
     zb_rate = temp.get("zb_rate") or 0
+
+    # 公共派生量
+    today_main = main_series[-1]["main"] if main_series else None
+    ma5_main = (sum(x["main"] for x in main_series[-6:-1]) / 5) if main_series and len(main_series) >= 6 else None
+    main_net_yi = (today_main / 1e8) if today_main is not None else 0.0
+    amt_ratio = (amount_yi / amt_ma5_yi) if amt_ma5_yi else None
+    align = tech_sh["align"] if tech_sh else "mixed"
+    macd_state = tech_sh["macd"]["state"] if tech_sh and tech_sh.get("macd") else None
+    phase = az.cycle_phase(score, align, macd_state)
 
     sections = []
 
@@ -81,9 +92,10 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                  f"<td>{_yi(q.get('amount'), 0)}</td>{extra}</tr>")
     head = "<tr><th>指数</th><th>收盘</th><th>涨跌幅</th><th>涨跌</th><th>成交额</th><th>涨/跌家数</th></tr>"
     sections.append({"id": "overview", "title": "① 大盘速览",
-                     "html": f"<table><thead>{head}</thead><tbody>{rows}</tbody></table>"
+                     "html": f"<div class='tbl-wrap'><table><thead>{head}</thead><tbody>{rows}</tbody></table></div>"
                              f"<p>两市合计成交 <b>{amount_yi:,.0f} 亿</b>,为前5日均量的 "
-                             f"{(amount_yi / amt_ma5_yi * 100) if amt_ma5_yi else '--'}%。</p>"})
+                             f"{(amount_yi / amt_ma5_yi * 100) if amt_ma5_yi else '--'}%"
+                             f"{'(沪市K线精确值)' if amt_ma5_yi else ''}。</p>"})
 
     # 2 市场温度
     chips = "".join(
@@ -97,8 +109,6 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                              f"炸板率六个维度(参数见 <code>scripts/analyze.py</code>),规则透明可复核。</p>"})
 
     # 3 资金面
-    today_main = main_series[-1]["main"] if main_series else None
-    ma5_main = (sum(x["main"] for x in main_series[-6:-1]) / 5) if main_series and len(main_series) >= 6 else None
     flow_html = "<p>全市场主力资金:"
     if today_main is not None:
         trend = "高于" if (ma5_main and today_main > ma5_main) else "低于"
@@ -132,11 +142,14 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
         if lian:
             rows = "".join(
                 f"<tr><td>{x['name']}</td><td>{x['code']}</td>"
-                f"<td class='up'>{x['lbc']} 连板</td><td>{x['hybk'] or '--'}</td>"
+                f"<td class='up'>{x['lbc']} 连板</td>"
+                f"<td>{(str(x.get('days') or '-')) + '天' + str(x.get('ct') or '-') + '板'}</td>"
+                f"<td>{x['hybk'] or '--'}</td>"
                 f"<td>{_yi(x.get('fund'), 1)}</td><td>{x.get('fbt') or '--'}</td></tr>"
                 for x in lian)
-            body += ("<table><thead><tr><th>股票</th><th>代码</th><th>连板</th><th>行业</th>"
-                     "<th>封单</th><th>首次封板</th></tr></thead><tbody>" + rows + "</tbody></table>")
+            body += ("<div class='tbl-wrap'><table><thead><tr><th>股票</th><th>代码</th><th>连板</th>"
+                     "<th>近期涨停</th><th>行业</th>"
+                     "<th>封单</th><th>首次封板</th></tr></thead><tbody>" + rows + "</tbody></table></div>")
         sections.append({"id": "zt", "title": "⑤ 涨停梯队与打板情绪", "html": body})
 
     # 6 技术面
@@ -156,10 +169,21 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                      f"<td>{r.get('leader') or '--'}</td></tr>")
         sections.append({"id": "hot", "title": "⑦ 热点板块(概念涨幅榜)",
                          "html": "<p>★ = 该板块当日主力资金为净流入(涨幅与资金共振,持续性更佳)。</p>"
-                                 "<table><thead><tr><th>概念</th><th>涨跌幅</th><th>主力净流入</th>"
-                                 "<th>领涨股</th></tr></thead><tbody>" + rows + "</tbody></table>"})
+                                 "<div class='tbl-wrap'><table><thead><tr><th>概念</th><th>涨跌幅</th><th>主力净流入</th>"
+                                 "<th>领涨股</th></tr></thead><tbody>" + rows + "</tbody></table></div>"})
 
-    # 8 明日参考与操作建议
+    # 8 多空要点对照(全部由当日数据推导,多空并列,供独立判断)
+    bull, bear = az.bull_bear_points(quotes, score, tech_sh, main_net_yi, amt_ratio, margin_chg5, pools)
+    bull_html = "".join(f"<li>{x}</li>" for x in bull)
+    bear_html = "".join(f"<li>{x}</li>" for x in bear)
+    sections.append({"id": "bb", "title": "⑧ 多空要点对照",
+                     "html": "<p>以下要点均由当日公开数据直接推导,多空并列呈现、不给倾向性结论,供独立判断:</p>"
+                             "<div class='bb-grid'>"
+                             f"<div class='bb-col bull-col'><h5>▲ 利多因素({len(bull)})</h5><ul>{bull_html}</ul></div>"
+                             f"<div class='bb-col bear-col'><h5>▼ 利空因素({len(bear)})</h5><ul>{bear_html}</ul></div>"
+                             "</div>"})
+
+    # 9 明日参考与操作建议
     hot = [r for r in industries if (r.get("main") or 0) > 0 and (r.get("pct") or 0) > 0]
     hot.sort(key=lambda r: -(r.get("main") or 0))
     direction = "、".join(f"<b>{r['name']}</b>({r['main'] / 1e8:+,.1f} 亿,领涨股 {r['leader']})" for r in hot[:3]) \
@@ -176,13 +200,14 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
     if not risks:
         risks.append("暂无特别风险信号,关注量能与主线的持续性")
     risk_html = "".join(f"<li>{r}</li>" for r in risks)
-    sections.append({"id": "advice", "title": "⑧ 明日参考与操作建议",
-                     "html": f"<div class='advice-box'><b>仓位参考:{pos['pct']} 成左右</b><br>{pos['text']}</div>"
+    sections.append({"id": "advice", "title": "⑨ 明日参考与操作建议",
+                     "html": f"<p><b>情绪周期定位</b>:{phase[0]} —— {phase[1]}。</p>"
+                             f"<div class='advice-box'><b>仓位参考:{pos['pct']} 成左右</b><br>{pos['text']}</div>"
                              f"<p><b>资金+涨幅共振方向</b>:{direction}</p>"
                              f"<p><b>风险提示</b>:</p><ul>{risk_html}</ul>"})
 
-    # 9 免责声明
-    sections.append({"id": "disclaimer", "title": "⑨ 免责声明", "html": f"<p>{DISCLAIMER}</p>"})
+    # 10 免责声明
+    sections.append({"id": "disclaimer", "title": "⑩ 免责声明", "html": f"<p>{DISCLAIMER}</p>"})
 
     # 首页要点
     if today_main is not None:
@@ -192,6 +217,7 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
     suggestions = [
         {"icon": "🧭", "text": f"市场温度 {score}/100({temp['label']}):{temp['mood']}"},
         {"icon": "💰", "text": flow_text},
+        {"icon": "🔄", "text": f"情绪周期:{phase[0]}"},
         {"icon": "📊", "text": f"仓位参考约 {pos['pct']} 成(仅供参考)"},
     ]
     headline = (f"{trade_date} 收盘:上证 {_pct(sh_pct)},两市成交 {amount_yi:,.0f} 亿,"
@@ -200,5 +226,6 @@ def build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
     return {"date": trade_date,
             "generated_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "temperature": {"score": score, "label": temp["label"], "mood": temp["mood"]},
+            "phase": {"name": phase[0], "text": phase[1]},
             "position": pos, "headline": headline, "suggestions": suggestions,
             "sections": sections, "disclaimer": DISCLAIMER}

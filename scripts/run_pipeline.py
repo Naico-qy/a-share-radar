@@ -136,7 +136,7 @@ def main():
         step("6/6 生成报告")
         rep = rp.build_report(trade_date, quotes, temp, pos, tech_sh, tech_cyb,
                               industries, concepts, pools, main_series, margin,
-                              amount_yi, amt_ma5_yi)
+                              amount_yi, amt_ma5_yi, margin_chg5)
         save("report.json", rep)
 
         hpath = os.path.join(DATA, "history.json")
