@@ -1,0 +1,122 @@
+/* A股市场雷达 · 深色主题(红涨绿跌) */
+:root{
+  --bg:#0c1118; --bg2:#111827; --card:#151d2b; --card2:#1a2436;
+  --line:#24304a; --tx:#e6edf3; --tx2:#8b98ac; --muted:#6b7891;
+  --up:#f04a5a; --down:#2ec27e; --accent:#5b8cff; --gold:#e6a23c;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--tx);
+  font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px; line-height:1.55;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px; margin:0 auto; padding:0 16px}
+
+/* 顶栏 */
+.topbar{background:linear-gradient(180deg,#131c2e,#0e1523); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20}
+.topbar-inner{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; flex-wrap:wrap; gap:8px}
+.brand{font-size:19px; font-weight:700; letter-spacing:.5px}
+.brand .sub{font-size:12px; font-weight:400; color:var(--tx2); margin-left:10px}
+.topmeta{display:flex; align-items:center; gap:10px; font-size:12px}
+.badge{padding:3px 10px; border-radius:20px; background:#1f2a44; color:var(--tx2); border:1px solid var(--line)}
+.badge.live{background:rgba(46,194,126,.12); color:var(--down); border-color:rgba(46,194,126,.4)}
+.badge.err{background:rgba(230,162,60,.12); color:var(--gold); border-color:rgba(230,162,60,.4)}
+.muted{color:var(--muted)}
+.small{font-size:12px; font-weight:400}
+
+/* 免责声明条 */
+.disclaimer-bar{background:rgba(230,162,60,.08); border-bottom:1px solid rgba(230,162,60,.25); color:#d8b06a; font-size:12px; padding:7px 16px; text-align:center}
+
+/* 标签页 */
+.tabs{display:flex; gap:6px; padding:14px 16px 0; overflow-x:auto}
+.tabs button{
+  background:var(--card); color:var(--tx2); border:1px solid var(--line);
+  padding:8px 22px; border-radius:10px 10px 0 0; cursor:pointer; font-size:14px; white-space:nowrap;
+}
+.tabs button.active{background:var(--card2); color:var(--tx); border-bottom-color:transparent; font-weight:600}
+.tab{display:none; padding:16px 0 30px}
+.tab.active{display:block}
+
+/* 面板 */
+.panel{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px}
+.panel h3{font-size:15px; margin-bottom:12px; font-weight:600}
+.panel h4{font-size:13px; color:var(--tx2); margin:14px 0 8px; font-weight:600}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+.grid2 .panel{margin-bottom:0}
+.grid2{margin-bottom:16px}
+@media (max-width:860px){
+  .grid2{grid-template-columns:1fr}
+  .brand .sub{display:none}
+}
+.h220{height:220px} .h280{height:280px} .h340{height:340px} .h430{height:430px}
+
+/* 指数卡片 */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:16px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+.card .name{color:var(--tx2); font-size:13px}
+.card .price{font-size:24px; font-weight:700; margin:4px 0 2px}
+.card .row{display:flex; justify-content:space-between; font-size:12px; color:var(--tx2); margin-top:6px}
+.card .main-net{font-size:12px}
+
+/* 涨跌色(中国习惯:红涨绿跌) */
+.up{color:var(--up)} .down{color:var(--down)}
+
+/* 芯片 */
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.chip{background:var(--card2); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; display:inline-flex; flex-direction:column; gap:2px}
+.chip b{font-size:14px}
+.chip i{font-style:normal; color:var(--muted); font-size:11px}
+.chip.pos{border-color:rgba(240,74,90,.5)} .chip.pos b{color:var(--up)}
+.chip.neg{border-color:rgba(46,194,126,.5)} .chip.neg b{color:var(--down)}
+.chip.big b{font-size:18px}
+
+/* 表格 */
+table{width:100%; border-collapse:collapse; font-size:13px}
+th,td{padding:7px 8px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted); font-weight:500; position:sticky; top:0; background:var(--card)}
+tbody tr:hover{background:var(--card2)}
+td.up{color:var(--up)} td.down{color:var(--down)}
+.tbl-scroll{max-height:430px; overflow:auto}
+
+/* 报告 */
+#report-body .big{font-size:16px; margin:8px 0 12px}
+#report-body p{margin:10px 0}
+#report-body ul{margin:6px 0 6px 20px}
+#report-body li{margin:4px 0}
+#report-body code{background:var(--card2); padding:1px 6px; border-radius:4px; font-size:12px}
+.advice-box{background:rgba(91,140,255,.08); border:1px solid rgba(91,140,255,.35); border-radius:10px; padding:12px 14px; margin:10px 0}
+
+/* 自选股 */
+.watch-add{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px}
+.watch-add input{
+  background:var(--bg2); border:1px solid var(--line); color:var(--tx);
+  padding:8px 12px; border-radius:8px; font-size:14px; width:380px; max-width:60vw;
+}
+.watch-add button{
+  background:var(--accent); color:#fff; border:none; padding:8px 18px;
+  border-radius:8px; cursor:pointer; font-size:14px;
+}
+.watch-add button:hover{opacity:.9}
+#watch-table table{cursor:pointer}
+.watch-detail-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0 8px; padding-top:12px; border-top:1px dashed var(--line)}
+.watch-detail-head button{background:var(--card2); border:1px solid var(--line); color:var(--tx2); border-radius:6px; padding:4px 10px; cursor:pointer; margin-left:auto}
+
+/* 涨跌停统计 */
+.stat-line{display:flex; gap:14px; flex-wrap:wrap; font-size:13px; margin-top:6px}
+
+/* 页脚 */
+footer{color:var(--muted); font-size:12px; padding:18px 16px 30px; border-top:1px solid var(--line); text-align:center}
+footer p{margin:4px 0}
+
+/* 温度部件说明 */
+#temp-components .chip{max-width:100%}
+
+/* 小按钮 */
+.link-btn{background:none; border:none; color:var(--accent); cursor:pointer; font-size:13px; padding:2px 0}
+.link-btn:hover{text-decoration:underline}
+.del-btn{background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; font-size:12px}
+.del-btn:hover{color:var(--up); border-color:rgba(240,74,90,.5)}

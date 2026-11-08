@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股市场雷达 · 每日资金与情绪监控</title>
+<meta name="description" content="基于东方财富公开数据与 akshare 的 A 股每日复盘:市场情绪温度计、主力资金监控、涨跌停梯队、每日自动分析报告。仅供学习交流,不构成投资建议。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://registry.npmmirror.com/echarts/5.6.0/files/dist/echarts.min.js"></script>
+<script>window.echarts || document.write('<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"><\/script>');</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">📈 A股市场雷达<span class="sub">资金监控 × 市场情绪 × 每日复盘</span></div>
+    <div class="topmeta">
+      <span id="live-badge" class="badge">加载中…</span>
+      <span id="update-time" class="muted"></span>
+    </div>
+  </div>
+</header>
+
+<div class="disclaimer-bar">⚠️ 本站为开源学习项目:数据来自公开接口(可能有延迟或错误),所有内容均<b>不构成投资建议</b>。股市有风险,入市需谨慎。</div>
+
+<nav class="tabs wrap">
+  <button data-tab="overview" class="active">总览</button>
+  <button data-tab="funds">资金</button>
+  <button data-tab="sectors">板块</button>
+  <button data-tab="watchlist">自选股</button>
+  <button data-tab="report">每日报告</button>
+</nav>
+
+<main class="wrap">
+
+  <!-- ============ 总览 ============ -->
+  <section id="tab-overview" class="tab active">
+    <div id="index-cards" class="cards"></div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>市场温度计 <span class="muted small" id="temp-label"></span></h3>
+        <div id="gauge" class="h220"></div>
+        <div id="temp-components" class="chips"></div>
+      </div>
+      <div class="panel">
+        <h3>温度走势 <span class="muted small">随每日自动更新累积</span></h3>
+        <div id="temp-history" class="h220"></div>
+        <div id="history-note" class="muted small"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>上证指数 · 日K(近120日) <span class="muted small">MA5/10/20/60 + 成交额</span></h3>
+      <div id="kline-sh" class="h430"></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>涨停 / 跌停 / 炸板 <span class="muted small" id="pool-date"></span></h3>
+        <div id="pool-stats" class="chips"></div>
+        <h4>连板梯队(≥2板)</h4>
+        <div id="lianban-list"></div>
+      </div>
+      <div class="panel">
+        <h3>今日要点</h3>
+        <div id="report-brief"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 资金 ============ -->
+  <section id="tab-funds" class="tab">
+    <div class="panel">
+      <h3>主力资金净流入 · 行业板块(红=流入 绿=流出)</h3>
+      <div id="sector-flow-chart" class="h430"></div>
+    </div>
+    <div class="panel">
+      <h3>全市场主力资金 · 近60日(沪深合计)</h3>
+      <div id="main-flow-chart" class="h280"></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>个股主力净流入 Top 20</h3>
+        <div id="stock-flow-table"></div>
+      </div>
+      <div class="panel">
+        <h3>融资余额(两融 · T+1 披露)</h3>
+        <div id="margin-latest" class="chips"></div>
+        <div id="margin-chart" class="h280"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 板块 ============ -->
+  <section id="tab-sectors" class="tab">
+    <div class="grid2">
+      <div class="panel">
+        <h3>行业板块涨幅榜 <span class="muted small">含主力资金</span></h3>
+        <div id="industry-table"></div>
+      </div>
+      <div class="panel">
+        <h3>概念板块涨幅榜 <span class="muted small">含主力资金</span></h3>
+        <div id="concept-table"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 自选股 ============ -->
+  <section id="tab-watchlist" class="tab">
+    <div class="panel">
+      <div class="watch-add">
+        <input id="watch-input" maxlength="6" placeholder="输入6位代码回车添加,如 600519 / 000001 / 300750 / 830799">
+        <button id="watch-add-btn">添加</button>
+        <span class="muted small">仅沪深北 A 股代码 · 名单保存在本地浏览器</span>
+      </div>
+      <div id="watch-table"></div>
+      <div id="watch-detail" style="display:none">
+        <div class="watch-detail-head">
+          <b id="watch-detail-name"></b>
+          <span id="watch-detail-signals" class="chips"></span>
+          <button id="watch-detail-close">收起 ✕</button>
+        </div>
+        <div id="watch-detail-chart" class="h340"></div>
+      </div>
+      <p class="muted small">自选股行情为盘中实时刷新(JSONP 直连行情接口,交易时段每 30 秒);技术信号(MA/MACD/RSI)基于日K收盘数据在浏览器本地计算。点击行可展开 K 线与技术信号。</p>
+    </div>
+  </section>
+
+  <!-- ============ 报告 ============ -->
+  <section id="tab-report" class="tab">
+    <div class="panel">
+      <h3 id="report-title">每日报告</h3>
+      <div id="report-body"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>数据来源:东方财富公开行情接口 · 数据层基于开源库 <a href="https://github.com/akfamily/akshare" target="_blank" rel="noopener">akshare</a>(自动降级直连) · 图表:<a href="https://github.com/apache/echarts" target="_blank" rel="noopener">Apache ECharts</a></p>
+  <p>本站仅供学习交流,不构成任何投资建议 · 每个交易日 15:35(北京时间)由 GitHub Actions 自动更新</p>
+</footer>
+
+<script src="assets/js/indicators.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
